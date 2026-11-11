@@ -5,6 +5,7 @@ import math
 import os
 import re
 import tempfile
+import time
 from pathlib import Path
 
 from .framing import FramingRule
@@ -327,6 +328,14 @@ class Preferences:
                 )
                 stream.flush()
                 os.fsync(stream.fileno())
-            os.replace(temporary, self.path)
+            for attempt in range(7):
+                try:
+                    os.replace(temporary, self.path)
+                    break
+                except PermissionError as error:
+                    # Windows readers can briefly prevent replacing an existing file.
+                    if getattr(error, "winerror", None) not in (5, 32, 33) or attempt == 6:
+                        raise
+                    time.sleep(min(0.01 * 2**attempt, 0.2))
         finally:
             temporary.unlink(missing_ok=True)

@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -44,15 +45,91 @@ def test_simultaneous_instances_do_not_share_settings_temporary_file(tmp_path):
     def write(index):
         gate.wait()
         for revision in range(30):
+            stage = "save"
             try:
                 Preferences(path).save({"instance": index, "revision": revision, "padding": "x" * 8192})
-                assert len(json.loads(path.read_text())["padding"]) == 8192
+                stage = "read"
+                assert len(json.loads(path.read_text(encoding="utf-8"))["padding"]) == 8192
             except Exception as error:
-                errors.append(type(error).__name__)
+                errors.append(
+                    {"stage": stage, "error": repr(error), "winerror": getattr(error, "winerror", None)}
+                )
 
     with ThreadPoolExecutor(max_workers=4) as workers:
         list(workers.map(write, range(4)))
     assert errors == []
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Requires Windows file sharing semantics")
+def test_windows_preferences_save_waits_for_an_open_reader(tmp_path):
+    preferences = Preferences(tmp_path / "preferences.json")
+    preferences.save({"state": "original"})
+    with preferences.path.open("rb") as reader:
+        timer = threading.Timer(0.08, reader.close)
+        timer.start()
+        try:
+            preferences.save({"state": "updated"})
+        finally:
+            timer.join()
+    assert json.loads(preferences.path.read_text(encoding="utf-8"))["state"] == "updated"
+
+
+@pytest.mark.parametrize("winerror", [5, 32, 33])
+def test_preferences_survive_transient_windows_replace_lock(tmp_path, monkeypatch, winerror):
+    import framepilot.preferences as module
+
+    path = tmp_path / "preferences.json"
+    preferences = Preferences(path)
+    preferences.save({"state": "original"})
+    original_replace = module.os.replace
+    attempts = []
+    delays = []
+
+    def locked_replace(source, destination):
+        attempts.append((source, destination))
+        if len(attempts) < 3:
+            error = PermissionError("file is temporarily in use")
+            error.winerror = winerror
+            raise error
+        original_replace(source, destination)
+
+    monkeypatch.setattr(module.os, "replace", locked_replace)
+    monkeypatch.setattr(module.time, "sleep", delays.append)
+    preferences.save({"state": "updated"})
+    assert json.loads(path.read_text(encoding="utf-8"))["state"] == "updated"
+    assert len(attempts) == 3 and len(delays) == 2
+    assert not list(tmp_path.glob(".preferences-*.json"))
+
+
+@pytest.mark.parametrize("winerror", [None, 32])
+def test_persistent_replace_error_preserves_original_and_reports_failure(tmp_path, monkeypatch, winerror):
+    import framepilot.preferences as module
+
+    path = tmp_path / "preferences.json"
+    preferences = Preferences(path)
+    preferences.save({"state": "original"})
+    attempts = []
+    delays = []
+    error = PermissionError("write denied")
+    if winerror is not None:
+        error.winerror = winerror
+
+    def fail(source, destination):
+        attempts.append((source, destination))
+        raise error
+
+    monkeypatch.setattr(module.os, "replace", fail)
+    monkeypatch.setattr(module.time, "sleep", delays.append)
+    with pytest.raises(PermissionError):
+        preferences.save({"state": "updated"})
+    assert json.loads(path.read_text(encoding="utf-8"))["state"] == "original"
+    assert len(attempts) <= 7
+    assert sum(delays) < 1
+    if winerror is None:
+        assert len(attempts) == 1 and not delays
+    else:
+        assert len(delays) > 0
+    assert not list(tmp_path.glob(".preferences-*.json"))
 
 
 def test_close_during_processing_saves_newly_selected_photo_region(application, tmp_path):
