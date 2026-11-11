@@ -25,6 +25,7 @@ TEST_FILES = (
     "test_vision.py",
     "test_features.py",
     "test_windows_port.py",
+    "test_windows_encoding.py",
     "test_windows_release.py",
     "test_camera_names.py",
     "test_audit_regressions.py",

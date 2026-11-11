@@ -20,7 +20,7 @@ class NeuralFace:
 class NeuralFaces:
     def __init__(self):
         directory = Path(__file__).parent / "assets"
-        manifest = json.loads((directory / "yunet.json").read_text())
+        manifest = json.loads((directory / "yunet.json").read_text(encoding="utf-8"))
         model = directory / manifest["file"]
         if hashlib.sha256(model.read_bytes()).hexdigest() != manifest["sha256"]:
             raise RuntimeError("Модель лица повреждена; переустановите FramePilot")

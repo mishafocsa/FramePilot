@@ -145,7 +145,7 @@ def obs_self_test(app, report: Path):
 
     try:
         config = websocket_config_path()
-        settings = json.loads(config.read_text())
+        settings = json.loads(config.read_text(encoding="utf-8"))
         if not settings.get("server_enabled"):
             raise ValueError("websocket_disabled")
         controller = OBSClient(settings.get("server_port", 4455), settings.get("server_password", ""))

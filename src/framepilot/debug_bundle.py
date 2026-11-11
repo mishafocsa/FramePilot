@@ -48,5 +48,7 @@ def save_debug_bundle(main, directory):
         "metrics": main.metrics.text(),
         "scope": "Local screenshots and settings selected by the user; original video is not copied",
     }
-    (folder / "case.json").write_text(json.dumps(data, default=serial, ensure_ascii=False, indent=2))
+    (folder / "case.json").write_text(
+        json.dumps(data, default=serial, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     return folder

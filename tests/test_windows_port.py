@@ -103,8 +103,9 @@ def test_error_bundle_contains_visible_frames_and_selection_without_connection_s
         window.last_tracks = {"single": {"subject": Rect(0.1, 0.1, 0.4, 0.6)}}
         window.connection_profile = {"password": "never-save-this"}
         folder = save_debug_bundle(window, tmp_path)
-        text = (folder / "case.json").read_text()
+        text = (folder / "case.json").read_text(encoding="utf-8")
         data = json.loads(text)
+        assert data["selected_window"] == window.window_combo.currentText()
         assert "never-save-this" not in text
         assert data["tracking"]["single"]["subject"]["w"] == 0.4
         assert all((folder / (name + ".png")).exists() for name in ("input", "target", "output", "interface"))

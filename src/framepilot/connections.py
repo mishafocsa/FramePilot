@@ -105,7 +105,7 @@ def environment_report():
         result[key] = {"installed": path is not None, "version": version}
     config = websocket_config_path()
     try:
-        data = json.loads(config.read_text())
+        data = json.loads(config.read_text(encoding="utf-8"))
         result["obs_websocket"] = {
             "enabled_on_disk": bool(data.get("server_enabled")),
             "port_on_disk": data.get("server_port", 4455),

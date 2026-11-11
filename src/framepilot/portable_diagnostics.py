@@ -49,7 +49,7 @@ def portable_smoke_test(app, report):
             result["error"] = str(error)
         window.close()
         Path(report).parent.mkdir(parents=True, exist_ok=True)
-        Path(report).write_text(json.dumps(result, ensure_ascii=False, indent=2))
+        Path(report).write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         app.exit(0 if result["passed"] else 1)
 
     def poll():
