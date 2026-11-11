@@ -1,11 +1,13 @@
 import json
 import os
+import time
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+import cv2
 import numpy as np
 import pytest
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QUrl, Signal
 from PySide6.QtWidgets import QApplication
 
 from framepilot.app import MainWindow
@@ -19,6 +21,36 @@ from framepilot.widgets import to_image
 @pytest.fixture(scope="module")
 def application():
     return QApplication.instance() or QApplication([])
+
+
+def test_close_releases_loaded_video_before_removing_source_file(application, tmp_path):
+    path = tmp_path / "close-test.avi"
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), 15, (160, 120))
+    assert writer.isOpened()
+    try:
+        for _ in range(12):
+            writer.write(np.full((120, 160, 3), (20, 80, 180), np.uint8))
+    finally:
+        writer.release()
+    window = MainWindow()
+    try:
+        window.load_video(path)
+        deadline = time.monotonic() + 10
+        while window.latest_frame is None and time.monotonic() < deadline:
+            application.processEvents()
+            time.sleep(0.01)
+        assert window.latest_frame is not None, window.status.text()
+        assert not window.player.source().isEmpty()
+        window.close()
+        assert not window.video_thread.isRunning()
+        assert window.player.source().isEmpty()
+        # Windows refuses removal while Qt still owns an open decoder handle.
+        path.unlink()
+        assert not path.exists()
+    finally:
+        window.player.setSource(QUrl())
+        window.close()
+        application.processEvents()
 
 
 def test_old_window_frame_cannot_cross_into_new_window(application, monkeypatch):

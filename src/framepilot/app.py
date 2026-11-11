@@ -3024,6 +3024,8 @@ class MainWindow(QMainWindow):
         self.obs_timer.stop()
         self.obs_sync_timer.stop()
         self.player.stop()
+        self.player.setSource(QUrl())
+        self.player.setVideoSink(None)
         self.camera_input.stop()
         self.publisher.stop()
         self.obs_worker.cancel.set()
