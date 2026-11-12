@@ -54,6 +54,52 @@ def test_output_reuses_active_address_and_can_restart():
         output.stop()
 
 
+def test_single_photo_is_fully_delimited_before_a_second_photo_is_published():
+    output = LocalOutput()
+    colors = ((10, 30, 200), (30, 190, 50))
+    try:
+        url = output.start(0)
+        output.publish(np.full((60, 80, 3), colors[0], np.uint8))
+        with urllib.request.urlopen(urljoin(url, "/stream.mjpg"), timeout=1) as response:
+            assert response.readline().strip() == b"--frame"
+            for index, color in enumerate(colors):
+                assert response.readline().strip() == b"Content-Type: image/jpeg"
+                length = int(response.readline().split(b":")[1])
+                assert response.readline().strip() == b""
+                image = cv2.imdecode(np.frombuffer(response.read(length), np.uint8), cv2.IMREAD_COLOR)
+                np.testing.assert_allclose(image[30, 40], color, atol=4)
+                assert response.readline() == b"\r\n"
+                # A browser can finish this JPEG even when the next photo never arrives.
+                assert response.readline().strip() == b"--frame"
+                if index == 0:
+                    output.publish(np.full((60, 80, 3), colors[1], np.uint8))
+        assert output.frames == 2
+    finally:
+        output.stop()
+
+
+def test_static_photo_keeps_streaming_without_inflating_processed_frame_count():
+    output = LocalOutput()
+    try:
+        url = output.start(0)
+        output.publish(np.full((60, 80, 3), (25, 160, 75), np.uint8))
+        sequence = output.sequence
+        original = output.jpeg
+        with urllib.request.urlopen(urljoin(url, "/stream.mjpg"), timeout=2) as response:
+            assert response.readline().strip() == b"--frame"
+            for _ in range(3):
+                assert response.readline().strip() == b"Content-Type: image/jpeg"
+                length = int(response.readline().split(b":")[1])
+                assert response.readline().strip() == b""
+                assert response.read(length) == original
+                assert response.readline() == b"\r\n"
+                assert response.readline().strip() == b"--frame"
+        assert output.frames == 1
+        assert output.sequence == sequence
+    finally:
+        output.stop()
+
+
 def test_busy_port_falls_back_to_owned_server_and_reports_identity():
     occupied = socket.socket()
     occupied.bind(("127.0.0.1", 0))

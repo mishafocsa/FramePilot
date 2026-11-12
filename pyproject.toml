@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "framepilot"
-version = "0.15.3"
+version = "0.15.4"
 description = "Local object tracking and framing for video, photos, cameras and OBS"
 requires-python = ">=3.11"
 dependencies = [

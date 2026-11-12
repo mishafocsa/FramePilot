@@ -32,7 +32,7 @@ collection = COLLECT(exe, analysis.binaries, analysis.datas, name="FramePilot")
 if sys.platform == "darwin":
     app = BUNDLE(collection, name="FramePilot.app", bundle_identifier="local.framepilot.desktop",
              icon=str(root / "src" / "framepilot" / "assets" / "FramePilot.icns"),
-             info_plist={"CFBundleShortVersionString": "0.15.3", "CFBundleVersion": "18",
+             info_plist={"CFBundleShortVersionString": "0.15.4", "CFBundleVersion": "19",
                          "LSMinimumSystemVersion": "14.0", "NSHighResolutionCapable": True,
                          "NSPrincipalClass": "NSApplication", "NSRequiresAquaSystemAppearance": False,
                          "NSScreenCaptureUsageDescription": "FramePilot захватывает выбранный экран или окно для локальной обработки видео и поиска рамки.",

@@ -158,6 +158,7 @@ class LocalOutput:
                 self.connection.settimeout(3)
                 last = -1
                 try:
+                    self.wfile.write(b"--frame\r\n")
                     while not stopped.is_set():
                         with publisher.condition:
                             publisher.condition.wait_for(
@@ -165,20 +166,22 @@ class LocalOutput:
                                     (publisher.jpeg is not None and publisher.sequence != last)
                                     or stopped.is_set()
                                 ),
-                                1,
+                                0.25,  # Keep Chromium's decoder live for photos and paused video.
                             )
                             if stopped.is_set():
                                 break
                             frame, sequence = publisher.jpeg, publisher.sequence
-                        if frame is None or sequence == last:
+                        if frame is None:
                             continue
                         last = sequence
+                        # Complete this part now, without waiting for a later image.
+                        # Reuse the JPEG on idle ticks; processing/FPS counters stay unchanged.
                         self.wfile.write(
-                            b"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: "
+                            b"Content-Type: image/jpeg\r\nContent-Length: "
                             + str(len(frame)).encode()
                             + b"\r\n\r\n"
                             + frame
-                            + b"\r\n"
+                            + b"\r\n--frame\r\n"
                         )
                         self.wfile.flush()
                 except (BrokenPipeError, ConnectionResetError, TimeoutError, OSError):

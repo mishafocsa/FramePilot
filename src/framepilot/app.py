@@ -78,7 +78,7 @@ class Jobs(QObject):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("FramePilot 0.15.3 · автокадрирование")
+        self.setWindowTitle("FramePilot 0.15.4 · автокадрирование")
         self.resize(1380, 900)
         self.setMinimumSize(1120, 740)
         self.settings = Settings()
